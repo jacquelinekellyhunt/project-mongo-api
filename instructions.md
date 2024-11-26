@@ -52,6 +52,7 @@ This whole process can be a little tricky and relies on your models having the s
   - A minimum of one endpoint to return a **single** result (single element).
 - Your API should use Mongoose models to model your data and use these models to fetch data from the database.
 - Your API should be [RESTful](https://www.notion.so/23473abe980e40aaa932914751055d22?pvs=21).
+- You should follow the guidelines on how to write clean code
 
 
 ## Stretch goals
