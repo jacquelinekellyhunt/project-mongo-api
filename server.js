@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // MongoDB connection
-const mongoURI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/avocadoSales";
+const mongoURI = process.env.MONGODB_URI || "mongodb+srv://jacquelinekellyhunt:Liblikas5.@cluster0.8davn.mongodb.net/avocadoSales?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose
   .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -41,13 +41,11 @@ const listEndpoints = require("express-list-endpoints");
 
 if (process.env.RESET_DB) {
   const seedDatabase = async () => {
-    await AvocadoSale.deleteMany({}); // Clear existing data
-    avocadoSalesData.forEach(async (sale) => {
-      const newSale = new AvocadoSale(sale);
-      await newSale.save();
-    });
+    await AvocadoSale.deleteMany({});
+    const promises = avocadoSalesData.map((sale) => new AvocadoSale(sale).save());
+    await Promise.all(promises);
     console.log("Database seeded with avocado sales data");
-  };
+  };  
   seedDatabase();
 }
 
