@@ -6,8 +6,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// MongoDB connection
-const mongoURI = process.env.MONGODB_URI || "mongodb+srv://jacquelinekellyhunt:Liblikas5.@cluster0.8davn.mongodb.net/avocadoSales?retryWrites=true&w=majority&appName=Cluster0";
+// MongoDB Atlas connection
+const mongoURI = process.env.MONGODB_URI;
 
 mongoose
   .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -34,22 +34,22 @@ const AvocadoSale = mongoose.model(
   })
 );
 
-// Server configuration
+// Server setup
 const port = process.env.PORT || 8080;
 const app = express();
 const listEndpoints = require("express-list-endpoints");
 
+// Reset and seed the database (if needed)
 if (process.env.RESET_DB) {
   const seedDatabase = async () => {
     await AvocadoSale.deleteMany({});
-    const promises = avocadoSalesData.map((sale) => new AvocadoSale(sale).save());
-    await Promise.all(promises);
-    console.log("Database seeded with avocado sales data");
-  };  
+    await AvocadoSale.insertMany(avocadoSalesData);
+    console.log("Database seeded with avocado sales data!");
+  };
   seedDatabase();
 }
 
-// Middleware setup
+// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -73,7 +73,7 @@ app.get("/avocado-sales", async (req, res) => {
   }
 });
 
-// Route to get avocado sales by region
+// Route to get sales by region
 app.get("/avocado-sales/region/:region", async (req, res) => {
   const { region } = req.params;
   try {
@@ -88,7 +88,7 @@ app.get("/avocado-sales/region/:region", async (req, res) => {
   }
 });
 
-// Route to get avocado sales by date
+// Route to get sales by date
 app.get("/avocado-sales/date/:date", async (req, res) => {
   const { date } = req.params;
   try {
@@ -103,7 +103,7 @@ app.get("/avocado-sales/date/:date", async (req, res) => {
   }
 });
 
-// Route to get avocado sales by average price range
+// Route to get sales by price range
 app.get("/avocado-sales/price-range", async (req, res) => {
   const { min, max } = req.query;
   try {
