@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const mongoURI = process.env.MONGODB_URI;
+const MONGO_URL = process.env.MONGODB_URI || "mongodb://127.0.0.1/project-mongo";
 
 mongoose
   .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
