@@ -6,19 +6,21 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// MongoDB Atlas connection
-const mongoURI = process.env.MONGODB_URI;
+const app = express();
+const port = process.env.PORT || 8080;
 
+app.use(cors());
+app.use(express.json());
+
+console.log("Connecting to MongoDB...");
 mongoose
-  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    console.log("MongoDB successfully connected!");
-  })
+  .connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("MongoDB successfully connected!"))
   .catch((error) => {
-    console.error("Error connecting to MongoDB:", error);
+    console.error("Error connecting to MongoDB:", error.message);
+    process.exit(1); 
   });
 
-// Avocado Sale schema and model
 const AvocadoSale = mongoose.model(
   "AvocadoSale",
   new mongoose.Schema({
@@ -34,93 +36,73 @@ const AvocadoSale = mongoose.model(
   })
 );
 
-// Server setup
-const port = process.env.PORT || 8080;
-const app = express();
-const listEndpoints = require("express-list-endpoints");
-
-// Reset and seed the database (if needed)
+// Seed Database (if RESET_DB is set)
 if (process.env.RESET_DB) {
   const seedDatabase = async () => {
-    await AvocadoSale.deleteMany({});
-    await AvocadoSale.insertMany(avocadoSalesData);
-    console.log("Database seeded with avocado sales data!");
+    console.log("Resetting database...");
+    try {
+      await AvocadoSale.deleteMany({});
+      await AvocadoSale.insertMany(avocadoSalesData);
+      console.log("Database seeded successfully!");
+    } catch (error) {
+      console.error("Error seeding database:", error.message);
+    }
   };
   seedDatabase();
 }
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Root endpoint
 app.get("/", (req, res) => {
-  const endpoints = listEndpoints(app);
   res.json({
     message: "Welcome to the Avocado Sales API!",
-    endpoints: endpoints,
+    endpoints: ["/avocado-sales", "/avocado-sales/:id"],
   });
 });
 
-// Route to get all avocado sales
+// Fetch All Sales with Filters (Collection of Results)
 app.get("/avocado-sales", async (req, res) => {
-  try {
-    const sales = await AvocadoSale.find();
-    res.json(sales);
-  } catch (error) {
-    console.error("Error retrieving avocado sales:", error);
-    res.status(500).send("Server error");
-  }
-});
+  const { region, date, min, max } = req.query;
+  const query = {};
 
-// Route to get sales by region
-app.get("/avocado-sales/region/:region", async (req, res) => {
-  const { region } = req.params;
+  // Add filters to the query
+  if (region) {
+    query.region = new RegExp(region, "i"); 
+  }
+  if (date) {
+    query.date = date; 
+  }
+  if (min || max) {
+    query.averagePrice = {};
+    if (min) query.averagePrice.$gte = Number(min); 
+    if (max) query.averagePrice.$lte = Number(max); 
+  }
+
   try {
-    const sales = await AvocadoSale.find({ region: new RegExp(region, "i") });
+    const sales = await AvocadoSale.find(query);
     if (sales.length === 0) {
-      return res.status(404).send("No sales data found for this region");
+      return res.status(404).json({ error: "No sales data found with the provided filters." });
     }
     res.json(sales);
   } catch (error) {
-    console.error("Error retrieving sales by region:", error);
-    res.status(500).send("Server error");
+    console.error("❌ Error retrieving avocado sales:", error.message);
+    res.status(500).json({ error: "Internal server error", details: error.message });
   }
 });
 
-// Route to get sales by date
-app.get("/avocado-sales/date/:date", async (req, res) => {
-  const { date } = req.params;
+// Fetch Single Sale by ID (Single Result)
+app.get("/avocado-sales/:id", async (req, res) => {
+  const { id } = req.params;
   try {
-    const sales = await AvocadoSale.find({ date });
-    if (sales.length === 0) {
-      return res.status(404).send("No sales data found for this date");
+    const sale = await AvocadoSale.findOne({ id: Number(id) });
+    if (!sale) {
+      return res.status(404).json({ error: "No sale found with the provided ID." });
     }
-    res.json(sales);
+    res.json(sale);
   } catch (error) {
-    console.error("Error retrieving sales by date:", error);
-    res.status(500).send("Server error");
+    console.error("❌ Error retrieving sale by ID:", error.message);
+    res.status(500).json({ error: "Internal server error", details: error.message });
   }
 });
 
-// Route to get sales by price range
-app.get("/avocado-sales/price-range", async (req, res) => {
-  const { min, max } = req.query;
-  try {
-    const sales = await AvocadoSale.find({
-      averagePrice: { $gte: Number(min) || 0, $lte: Number(max) || Infinity },
-    });
-    if (sales.length === 0) {
-      return res.status(404).send("No sales data found in this price range");
-    }
-    res.json(sales);
-  } catch (error) {
-    console.error("Error retrieving sales by price range:", error);
-    res.status(500).send("Server error");
-  }
-});
-
-// Start the server
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+  console.log(`🚀 Server running on http://localhost:${port}`);
 });
