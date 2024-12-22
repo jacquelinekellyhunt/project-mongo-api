@@ -6,19 +6,15 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const app = express();
-const port = process.env.PORT || 8080;
+const mongoURI = process.env.MONGODB_URI;
 
-app.use(cors());
-app.use(express.json());
-
-console.log("Connecting to MongoDB...");
 mongoose
-  .connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("MongoDB successfully connected!"))
+  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log("🚀 MongoDB successfully connected!");
+  })
   .catch((error) => {
-    console.error("Error connecting to MongoDB:", error.message);
-    process.exit(1); 
+    console.error("Error connecting to MongoDB:", error);
   });
 
 const AvocadoSale = mongoose.model(
@@ -36,40 +32,38 @@ const AvocadoSale = mongoose.model(
   })
 );
 
-// Seed Database (if RESET_DB is set)
+const app = express();
+const port = process.env.PORT || 8080;
+
 if (process.env.RESET_DB) {
   const seedDatabase = async () => {
     console.log("Resetting database...");
-    try {
-      await AvocadoSale.deleteMany({});
-      await AvocadoSale.insertMany(avocadoSalesData);
-      console.log("Database seeded successfully!");
-    } catch (error) {
-      console.error("Error seeding database:", error.message);
-    }
+    await AvocadoSale.deleteMany({});
+    await AvocadoSale.insertMany(avocadoSalesData);
+    console.log("✅ Database seeded with avocado sales data!");
   };
   seedDatabase();
 }
 
+app.use(cors());
+app.use(express.json());
+
 app.get("/", (req, res) => {
   res.json({
     message: "Welcome to the Avocado Sales API!",
-    endpoints: ["/avocado-sales", "/avocado-sales/:id"],
+    endpoints: [
+      { method: "GET", path: "/avocado-sales", description: "Get all sales or filter data" },
+      { method: "GET", path: "/avocado-sales/:id", description: "Get a single sale by ID" },
+    ],
   });
 });
 
-// Fetch All Sales with Filters (Collection of Results)
 app.get("/avocado-sales", async (req, res) => {
   const { region, date, min, max } = req.query;
   const query = {};
 
-  // Add filters to the query
-  if (region) {
-    query.region = new RegExp(region, "i"); 
-  }
-  if (date) {
-    query.date = date; 
-  }
+  if (region) query.region = new RegExp(region, "i"); 
+  if (date) query.date = date; 
   if (min || max) {
     query.averagePrice = {};
     if (min) query.averagePrice.$gte = Number(min); 
@@ -77,32 +71,32 @@ app.get("/avocado-sales", async (req, res) => {
   }
 
   try {
+    console.log("Query:", query); 
     const sales = await AvocadoSale.find(query);
     if (sales.length === 0) {
       return res.status(404).json({ error: "No sales data found with the provided filters." });
     }
     res.json(sales);
   } catch (error) {
-    console.error("❌ Error retrieving avocado sales:", error.message);
-    res.status(500).json({ error: "Internal server error", details: error.message });
+    console.error("Error retrieving sales data:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-// Fetch Single Sale by ID (Single Result)
 app.get("/avocado-sales/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const sale = await AvocadoSale.findOne({ id: Number(id) });
+    const sale = await AvocadoSale.findById(id);
     if (!sale) {
-      return res.status(404).json({ error: "No sale found with the provided ID." });
+      return res.status(404).json({ error: "No sales data found for the given ID." });
     }
     res.json(sale);
   } catch (error) {
-    console.error("❌ Error retrieving sale by ID:", error.message);
-    res.status(500).json({ error: "Internal server error", details: error.message });
+    console.error("Error retrieving sale by ID:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
 app.listen(port, () => {
-  console.log(`🚀 Server running on http://localhost:${port}`);
+  console.log(`Server running on http://localhost:${port}`);
 });
