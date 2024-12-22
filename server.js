@@ -6,17 +6,15 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const MONGO_URL = process.env.MONGODB_URI || "mongodb://127.0.0.1/project-mongo";
+const MONGO_URL = process.env.MONGODB_URI || "mongodb://127.0.0.1/project-mongo"; // Use MONGO_URL consistently
 
+// Connect to MongoDB
 mongoose
-  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    console.log("🚀 MongoDB successfully connected!");
-  })
-  .catch((error) => {
-    console.error("Error connecting to MongoDB:", error);
-  });
+  .connect(MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("🚀 MongoDB successfully connected!"))
+  .catch((error) => console.error("Error connecting to MongoDB:", error));
 
+// Define Mongoose model
 const AvocadoSale = mongoose.model(
   "AvocadoSale",
   new mongoose.Schema({
@@ -39,8 +37,8 @@ if (process.env.RESET_DB) {
   const seedDatabase = async () => {
     console.log("Resetting database...");
     await AvocadoSale.deleteMany({});
-    await AvocadoSale.insertMany(avocadoSalesData);
-    console.log("✅ Database seeded with avocado sales data!");
+    const inserted = await AvocadoSale.insertMany(avocadoSalesData);
+    console.log(`✅ Database seeded with ${inserted.length} entries!`);
   };
   seedDatabase();
 }
@@ -48,6 +46,7 @@ if (process.env.RESET_DB) {
 app.use(cors());
 app.use(express.json());
 
+// Root endpoint
 app.get("/", (req, res) => {
   res.json({
     message: "Welcome to the Avocado Sales API!",
@@ -58,20 +57,20 @@ app.get("/", (req, res) => {
   });
 });
 
+// Endpoint to get all sales or filter data
 app.get("/avocado-sales", async (req, res) => {
   const { region, date, min, max } = req.query;
   const query = {};
 
-  if (region) query.region = new RegExp(region, "i"); 
-  if (date) query.date = date; 
+  if (region) query.region = new RegExp(region, "i");
+  if (date) query.date = date;
   if (min || max) {
     query.averagePrice = {};
-    if (min) query.averagePrice.$gte = Number(min); 
-    if (max) query.averagePrice.$lte = Number(max); 
+    if (min) query.averagePrice.$gte = Number(min);
+    if (max) query.averagePrice.$lte = Number(max);
   }
 
   try {
-    console.log("Query:", query); 
     const sales = await AvocadoSale.find(query);
     if (sales.length === 0) {
       return res.status(404).json({ error: "No sales data found with the provided filters." });
@@ -83,10 +82,11 @@ app.get("/avocado-sales", async (req, res) => {
   }
 });
 
+// Endpoint to get a single sale by ID
 app.get("/avocado-sales/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const sale = await AvocadoSale.findById(id);
+    const sale = await AvocadoSale.findOne({ id: Number(id) });
     if (!sale) {
       return res.status(404).json({ error: "No sales data found for the given ID." });
     }
@@ -98,5 +98,5 @@ app.get("/avocado-sales/:id", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+  console.log(`🚀 Server running on http://localhost:${port}`);
 });
