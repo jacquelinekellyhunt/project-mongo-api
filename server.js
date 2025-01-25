@@ -27,7 +27,8 @@ const AvocadoSale = mongoose.model(
     largeBagsSold: Number,
     xLargeBagsSold: Number,
     region: String,
-  })
+  }),
+  "avocados"
 );
 
 const app = express();
