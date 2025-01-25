@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const MONGO_URL = process.env.MONGODB_URI || "mongodb://127.0.0.1/project-mongo"; // Use MONGO_URL consistently
+const MONGO_URL = process.env.MONGODB_URI || "mongodb://127.0.0.1/project-mongo";
 
 // Connect to MongoDB
 mongoose
@@ -33,6 +33,7 @@ const AvocadoSale = mongoose.model(
 const app = express();
 const port = process.env.PORT || 8080;
 
+// Seed the database if RESET_DB is set
 if (process.env.RESET_DB) {
   const seedDatabase = async () => {
     console.log("Resetting database...");
@@ -62,6 +63,7 @@ app.get("/avocado-sales", async (req, res) => {
   const { region, date, min, max } = req.query;
   const query = {};
 
+  // Build the query object based on the filters
   if (region) query.region = new RegExp(region, "i");
   if (date) query.date = date;
   if (min || max) {
@@ -70,10 +72,17 @@ app.get("/avocado-sales", async (req, res) => {
     if (max) query.averagePrice.$lte = Number(max);
   }
 
+  console.log("Filters applied:", query); // Debugging log
+
   try {
     const sales = await AvocadoSale.find(query);
+    console.log("Sales found:", sales.length); // Debugging log
+
     if (sales.length === 0) {
-      return res.status(404).json({ error: "No sales data found with the provided filters." });
+      return res.status(404).json({
+        error: "No sales data found with the provided filters.",
+        filters: query,
+      });
     }
     res.json(sales);
   } catch (error) {
@@ -97,6 +106,7 @@ app.get("/avocado-sales/:id", async (req, res) => {
   }
 });
 
+// Start the server
 app.listen(port, () => {
   console.log(`🚀 Server running on http://localhost:${port}`);
 });
